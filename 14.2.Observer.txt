@@ -1,0 +1,148 @@
+2. Как с технической точки зрения реализован основной принцип шаблона “Наблюдатель”?
+
+<?php
+/**
+ * Издатель владеет некоторым важным состоянием и оповещает наблюдателей о его
+ * изменениях.
+ */
+class Subject implements \SplSubject
+{
+    /**
+     * @var int Для удобства в этой переменной хранится состояние Издателя,
+     * необходимое всем подписчикам.
+     */
+    public $state;
+
+    /**
+     * @var \SplObjectStorage Список подписчиков. В реальной жизни список
+     * подписчиков может храниться в более подробном виде (классифицируется по
+     * типу события и т.д.)
+     */
+    private $observers;
+    
+    public function __construct()
+    {
+        $this->observers = new \SplObjectStorage;
+    }
+    /**
+     * Методы управления подпиской.
+     */
+    public function attach(\SplObserver $observer)//: void
+    {
+        echo "Subject: Attached an observer.\n";
+        $this->observers->attach($observer);
+    }
+    public function detach(\SplObserver $observer)//: void
+    {
+        $this->observers->detach($observer);
+        echo "Subject: Detached an observer.\n";
+    }
+    /**
+     * Запуск обновления в каждом подписчике.
+     */
+    public function notify()//: void
+    {
+        echo "Subject: Notifying observers...\n";
+        foreach ($this->observers as $observer) {
+            $observer->update($this);
+        }
+    }
+    /**
+     * Обычно логика подписки – только часть того, что делает Издатель. Издатели
+     * часто содержат некоторую важную бизнес-логику, которая запускает метод
+     * уведомления всякий раз, когда должно произойти что-то важное (или после
+     * этого).
+     */
+    public function someBusinessLogic()//: void
+    {
+        echo "\nSubject: I'm doing something important.\n";
+        $this->state = rand(0, 10);
+
+        echo "Subject: My state has just changed to: {$this->state}\n";
+        $this->notify();
+    }
+}
+/**
+ * Конкретные Наблюдатели реагируют на обновления, выпущенные Издателем,  к
+ * которому они прикреплены.
+ */
+class ConcreteObserverA implements \SplObserver
+{
+    public function update(\SplSubject $subject)//: void
+    {
+        if ($subject->state < 3) {
+            echo "ConcreteObserverA: Reacted to the event.\n";
+        }
+    }
+}
+class ConcreteObserverB implements \SplObserver
+{
+    public function update(\SplSubject $subject)//: void
+    {
+        if ($subject->state == 0 || $subject->state >= 2) {
+            echo "ConcreteObserverB: Reacted to the event.\n";
+        }
+    }
+}
+/**
+ * Клиентский код.
+ */
+
+$subject = new Subject;
+
+$o1 = new ConcreteObserverA;
+$subject->attach($o1);
+$o2 = new ConcreteObserverB;
+$subject->attach($o2);
+
+$subject->someBusinessLogic();
+$subject->someBusinessLogic();
+
+$subject->detach($o2);
+
+$subject->someBusinessLogic();
+?>
+
+Шаблон "Наблюдатель" (Observer) определяет зависимость "один-ко-многим" между объектами. Т.е. к одному объекту привязываются множество других и при изменении состояния этого объекта, привязанные объекты полчают извещение или тоже меняют свое состояние.
+
+Шаблон "Наблюдатель" применяется в тех случаях, когда система обладает следующими свойствами:
+- существует, как минимум, один объект, рассылающий сообщения;
+- имеется не менее одного получателя сообщений, причём их количество и состав могут изменяться во время работы приложения;
+- нет надобности очень сильно связывать взаимодействующие объекты, что полезно для повторного использования.
+
+Данный шаблон часто применяют в ситуациях, в которых отправителя сообщений не интересует, что делают получатели с предоставленной им информацией.
+
+Для реализации шаблона проектирования "Наблюдатель" в PHP используются интерфейсы SplSubject и SplObserver.
+
+<?php
+SplObserver {
+    /* Методы */
+    abstract public update ( SplSubject $subject ) : void
+}
+
+SplSubject {
+    /* Методы */
+    abstract public attach ( SplObserver $observer ) : void
+    abstract public detach ( SplObserver $observer ) : void
+    abstract public notify ( void ) : void
+}
+?>
+
+В приведенном в самом начале примере реализации шаблона "Наблюдатель", создан класс Subject, который реализует интерфес SplSubject. В нем созданы переменные:
+- $state - где хранится условное состояние Издателя;
+- $observers - где хранится список подписчиков (сюда вносятся экземпляры классов, которые реализуют интерфейс SplObserver).
+
+В конструкторе происходит создание экземпляра класса SplObjectStorage и сохранение его в приватное свойство $observers.
+
+Также, реализованы методы управления подпиской: attach(SplObserver), detach(SplObserver) и notify().
+В методе attach(SplObserver) в переменную $observers заносится новый подписчик (экземпляр класса SplObserver).
+В методе detach(SplObserver) из переменной $observers удаляется подписчик (экземпляр класса SplObserver).
+Метод notify() запускает обновления в каждом подписчике - вызывает метод update() для каждого привязанного пользователя (SplObserver).
+Метод someBusinessLogic() реализует бизнес-логику, которая запускает метод уведомлений. В данном примере происходит изменение состояния (свойство $state) и вызывается метод notify(), который запускает "рассылку уведомлений" всем привязанным получателям.
+Классы ConcreteObserverA и ConcreteObserverВ - наблюдатели (пользователи), которые должны получать уведомления об изменении состояния экземпляра класса Subject. ConcreteObserverA и ConcreteObserverВ реализуют интерфейс SplObserver и содержат метод update(), который вызывается когда происходит изменение состояния объекта, за которым следят (наблюдают) экземпляры этих классов.
+
+Принцип работы:
+- создается экземпляр класса Subject (за ним будут следить наблюдатели);
+- создаются наблюдатели (экземпляры классов ConcreteObserverA и ConcreteObserverВ), которые привязываются к наблюдаемому объекту ($subject) методом attach(SplObserver);
+- выполняется какое-то задание - вызывается метод someBusinessLogic() - этот метод изменяет состояние объекта Subject. Т.к. за этим состоянием следят наблюдатели, то они "полчают извещение" - вызывается метод update() этих наблюдателей и наблюдатели реагируют на это. В нашем примере, при определенном состоянии объекта $subject, наблюдатели выводят сообщения "ConcreteObserverA: Reacted to the event." и "ConcreteObserverB: Reacted to the event.".
+
